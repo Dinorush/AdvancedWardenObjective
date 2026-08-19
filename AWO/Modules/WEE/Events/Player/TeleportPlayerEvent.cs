@@ -1,6 +1,7 @@
 ﻿using AmorLib.Utils;
 using AmorLib.Utils.Extensions;
 using BepInEx.Logging;
+using GameData;
 using LevelGeneration;
 using Player;
 using System.Collections;
@@ -52,16 +53,19 @@ internal sealed class TeleportPlayerEvent : BaseEvent
         }
 
         var itemAssignment = AssignWarpables(tp, playersInLevel);
-
+        int usedCount = 0;
         for (int j = 0; j < playersInLevel.Count; j++)
         {
-            bool overflow = j >= 4 && tp.FullTeamOverflow && tp.TPData.Count == 4 && tp.TPData.Max(tpd => (int)tpd.PlayerIndex) < 4;
-            int p = overflow ? (j % 4) : j;
+            PlayerAgent player = playersInLevel[j];
+            if (!PlayerIsInLocation(player, tp.FromLocation)) continue;
+
+            bool overflow = usedCount >= 4 && tp.FullTeamOverflow && tp.TPData.Count == 4 && tp.TPData.Max(tpd => (int)tpd.PlayerIndex) < 4;
+            int p = overflow ? (usedCount % 4) : usedCount;
+            usedCount++;
             int idx = tp.TPData.FindIndex(tpd => (int)tpd.PlayerIndex == p);
             if (idx == -1) continue;
             var playerData = tp.TPData[idx];
 
-            PlayerAgent player = playersInLevel[j];
             var tpData = new TeleportData()
             {
                 Player = player,
@@ -191,5 +195,31 @@ internal sealed class TeleportPlayerEvent : BaseEvent
             return player.FPSCamera.CameraRayDir.normalized;
 
         return player.Sync.m_locomotionData.LookDir.Value;
+    }
+
+    private static bool PlayerIsInLocation(PlayerAgent player, WEE_TeleportPlayer.FromLocationData data)
+    {
+        if (!data.Enabled) return true;
+
+        var node = player.CourseNode;
+        if (node == null)
+        {
+            Logger.Verbose(LogLevel.Warning, $"Player {player.Owner.NickName} has no CourseNode, can't check FromLocation filter!");
+            return false;
+        }
+
+        (var playerDim, var playerLayer, var playerZone) = (player.DimensionIndex, node.LayerType, node.m_zone?.LocalIndex ?? eLocalZoneIndex.Zone_0);
+        foreach (var d in data.DimensionIndex.Values)
+        {
+            foreach (var l in data.Layer.Values)
+            {
+                foreach (var z in data.LocalIndex.Values)
+                {
+                    if (playerDim == d && playerLayer == l && playerZone == z)
+                        return true;
+                }
+            }
+        }
+        return false;
     }
 }
