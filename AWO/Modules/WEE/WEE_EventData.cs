@@ -321,6 +321,7 @@ public sealed class WEE_NestedEvent
     public bool AllowRepeatsInRandom { get; set; } = false;
     public List<WardenObjectiveEventData> EventsToActivate { get; set; } = new();
     public List<EventsOnRandomWeight> WheelOfEvents { get; set; } = new();
+    public Arrayable<int> PlayerFilter { get; set; } = new(0);
     public enum NestedMode : byte
     {
         ActivateAll,

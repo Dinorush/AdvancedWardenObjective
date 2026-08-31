@@ -1,6 +1,7 @@
 ﻿using BepInEx;
 using BepInEx.Logging;
 using GameData;
+using Player;
 using NestedType = AWO.Modules.WEE.WEE_NestedEvent.NestedMode;
 
 namespace AWO.Modules.WEE.Events;
@@ -12,6 +13,16 @@ internal sealed class NestedEvent : BaseEvent
     protected override void TriggerCommon(WEE_EventData e)
     {
         var nested = e.NestedEvent ?? new();
+
+        int playerCount = PlayerManager.PlayerAgentsInLevel.Count;
+        var playerFilter = nested.PlayerFilter;
+        if (!playerFilter.IsEmpty)
+        {
+            if (playerCount < playerFilter[0])
+                return;
+            if (!playerFilter.IsSingle && playerCount > playerFilter[1])
+                return;
+        }
 
         List<WardenObjectiveEventData> eventList = nested.Type switch
         {
