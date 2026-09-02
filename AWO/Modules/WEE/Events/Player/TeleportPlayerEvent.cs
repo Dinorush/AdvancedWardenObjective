@@ -1,4 +1,5 @@
-﻿using AmorLib.Utils;
+﻿using AIGraph;
+using AmorLib.Utils;
 using AmorLib.Utils.Extensions;
 using BepInEx.Logging;
 using GameData;
@@ -95,7 +96,7 @@ internal sealed class TeleportPlayerEvent : BaseEvent
         foreach (var item in Dimension.WarpableObjects)
         {
             var sentry = item.TryCast<SentryGunInstance>();
-            if (sentry != null && tp.WarpSentries)
+            if (sentry != null && tp.WarpSentries && NodeIsInLocation(sentry.CourseNode, tp.FromLocation))
             {
                 itemAssignment.GetOrAddNew(lobby.IndexOf(sentry.Owner)).Add(item);
                 continue;
@@ -103,7 +104,7 @@ internal sealed class TeleportPlayerEvent : BaseEvent
 
             var bigPickup = item.TryCast<ItemInLevel>();
             if (!tp.FlashTeleport && tp.WarpBigPickups && lobby.Count == tp.TPData.Count
-                && bigPickup != null && bigPickup.CanWarp && bigPickup.internalSync.GetCurrentState().placement.droppedOnFloor)
+                && bigPickup != null && bigPickup.CanWarp && NodeIsInLocation(bigPickup.CourseNode, tp.FromLocation) && bigPickup.internalSync.GetCurrentState().placement.droppedOnFloor)
             {
                 itemAssignment.GetOrAddNew(tp.SendBPUsToHost ? PlayerManager.GetLocalPlayerAgent().PlayerSlotIndex : MasterRand.Next(lobby.Count)).Add(item);
             }
@@ -208,14 +209,23 @@ internal sealed class TeleportPlayerEvent : BaseEvent
             return false;
         }
 
-        (var playerDim, var playerLayer, var playerZone) = (player.DimensionIndex, node.LayerType, node.m_zone?.LocalIndex ?? eLocalZoneIndex.Zone_0);
+        return NodeIsInLocation(node, data);
+    }
+
+    private static bool NodeIsInLocation(AIG_CourseNode node, WEE_TeleportPlayer.FromLocationData data)
+    {
+        if (!data.Enabled) return true;
+
+        if (node == null) return false;
+
+        (var nodeDim, var nodeLayer, var nodeZone) = (node.m_dimension.DimensionIndex, node.LayerType, node.m_zone?.LocalIndex ?? eLocalZoneIndex.Zone_0);
         foreach (var d in data.DimensionIndex.Values)
         {
             foreach (var l in data.Layer.Values)
             {
                 foreach (var z in data.LocalIndex.Values)
                 {
-                    if (playerDim == d && playerLayer == l && playerZone == z)
+                    if (nodeDim == d && nodeLayer == l && nodeZone == z)
                         return true;
                 }
             }
